@@ -27,19 +27,35 @@ func (l *Logger) logAttrs(ctx context.Context, level slog.Level, msg string, att
 	_ = l.log.Handle(ctx, record)
 }
 
-func (l *Logger) Info(ctx context.Context, msg string, attrs ...slog.Attr) {
+func (l *Logger) Info(msg string, attrs ...slog.Attr) {
+	l.logAttrs(nil, slog.LevelInfo, msg, attrs...)
+}
+
+func (l *Logger) Error(msg string, attrs ...slog.Attr) {
+	l.logAttrs(nil, slog.LevelError, msg, attrs...)
+}
+
+func (l *Logger) Debug(msg string, attrs ...slog.Attr) {
+	l.logAttrs(nil, slog.LevelDebug, msg, attrs...)
+}
+
+func (l *Logger) Warn(msg string, attrs ...slog.Attr) {
+	l.logAttrs(nil, slog.LevelWarn, msg, attrs...)
+}
+
+func (l *Logger) InfoCtx(ctx context.Context, msg string, attrs ...slog.Attr) {
 	l.logAttrs(ctx, slog.LevelInfo, msg, attrs...)
 }
 
-func (l *Logger) Error(ctx context.Context, msg string, attrs ...slog.Attr) {
+func (l *Logger) ErrorCtx(ctx context.Context, msg string, attrs ...slog.Attr) {
 	l.logAttrs(ctx, slog.LevelError, msg, attrs...)
 }
 
-func (l *Logger) Debug(ctx context.Context, msg string, attrs ...slog.Attr) {
+func (l *Logger) DebugCtx(ctx context.Context, msg string, attrs ...slog.Attr) {
 	l.logAttrs(ctx, slog.LevelDebug, msg, attrs...)
 }
 
-func (l *Logger) Warn(ctx context.Context, msg string, attrs ...slog.Attr) {
+func (l *Logger) WarnCtx(ctx context.Context, msg string, attrs ...slog.Attr) {
 	l.logAttrs(ctx, slog.LevelWarn, msg, attrs...)
 }
 
