@@ -2,7 +2,6 @@ package logger
 
 import (
 	"log/slog"
-	"strings"
 )
 
 func levelColor(l slog.Level) []byte {
@@ -20,18 +19,18 @@ func levelColor(l slog.Level) []byte {
 	}
 }
 
-func parseLevel(level string) slog.Level {
-	switch strings.ToUpper(level) {
-	case "DEBUG":
-		return slog.LevelDebug
-	case "INFO":
-		return slog.LevelInfo
-	case "WARN":
-		return slog.LevelWarn
-	case "ERROR":
-		return slog.LevelError
+func ParseLevel(level int) string {
+	switch slog.Level(level) {
+	case slog.LevelDebug:
+		return "DEBUG"
+	case slog.LevelInfo:
+		return "INFO"
+	case slog.LevelWarn:
+		return "WARN"
+	case slog.LevelError:
+		return "ERROR"
 	default:
-		return slog.LevelInfo
+		return "INFO"
 	}
 }
 
