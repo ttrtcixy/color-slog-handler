@@ -117,7 +117,7 @@ func (h *ColorizedHandler) writeValue(buf []byte, value slog.Value) []byte { // 
 			buf = append(buf, "false"...)
 		}
 	case slog.KindDuration:
-		buf = append(buf, value.Duration().String()...) // todo проверить есть ли тут аллокация
+		buf = append(buf, value.Duration().String()...)
 	case slog.KindTime:
 		buf = value.Time().AppendFormat(buf, time.RFC3339)
 	case slog.KindAny:
