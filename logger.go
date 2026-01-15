@@ -35,10 +35,10 @@ var (
 )
 
 const (
-	LevelDebug = "DEBUG"
+	LevelDebug = "DEBU"
 	LevelInfo  = "INFO"
 	LevelWarn  = "WARN"
-	LevelError = "ERROR"
+	LevelError = "ERRO"
 )
 
 // bufPool uses a pointer to a slice (*[]byte) to minimize overhead.
