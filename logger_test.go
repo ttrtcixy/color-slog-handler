@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"io"
 	"log/slog"
 	"os"
 	"testing"
@@ -14,10 +15,8 @@ var (
 
 var file, _ = os.OpenFile("test.txt", os.O_RDWR, 0000)
 
-// На тестах было замечено, что цветной вывод замедляет код в 2+ раза.
-
-func BenchmarkLoggerSlogColorHandlerBuffered(b *testing.B) {
-	logger := NewLogger(NewTextHandler(os.Stdout, &Config{Level: int(slog.LevelDebug), BufferedOutput: true}))
+func BenchmarkLoggerTextHandlerBuffered(b *testing.B) {
+	logger := slog.New(NewTextHandler(io.Discard, &Config{Level: int(slog.LevelDebug), BufferedOutput: true}))
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
@@ -25,7 +24,7 @@ func BenchmarkLoggerSlogColorHandlerBuffered(b *testing.B) {
 			logger := logger.WithGroup("test_g")
 			logger = logger.With(slog.String("qwe", "tte"))
 
-			logger.logAttrs(nil, slog.LevelInfo, "msg",
+			logger.LogAttrs(nil, slog.LevelInfo, "msg",
 				slog.String("user_id", "user_99"),
 				slog.Int("amount", 500),
 				slog.Duration("latency", 15*time.Millisecond),
@@ -37,8 +36,8 @@ func BenchmarkLoggerSlogColorHandlerBuffered(b *testing.B) {
 	})
 }
 
-func BenchmarkLoggerSlogColorHandler(b *testing.B) {
-	logger := NewLogger(NewTextHandler(os.Stdout, &Config{Level: int(slog.LevelDebug)}))
+func BenchmarkLoggerTextHandler(b *testing.B) {
+	logger := slog.New(NewTextHandler(io.Discard, &Config{Level: int(slog.LevelDebug)}))
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
@@ -46,7 +45,49 @@ func BenchmarkLoggerSlogColorHandler(b *testing.B) {
 			logger := logger.WithGroup("test_g")
 			logger = logger.With(slog.String("qwe", "tte"))
 
-			logger.logAttrs(nil, slog.LevelInfo, "msg",
+			logger.LogAttrs(nil, slog.LevelInfo, "msg",
+				slog.String("user_id", "user_99"),
+				slog.Int("amount", 500),
+				slog.Duration("latency", 15*time.Millisecond),
+				slog.Bool("retry", false),
+				attr1,
+				attr2,
+			)
+		}
+	})
+}
+
+func BenchmarkLoggerJsonHandlerBuffered(b *testing.B) {
+	logger := slog.New(NewJsonHandler(io.Discard, &Config{Level: int(slog.LevelDebug), BufferedOutput: true}))
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			logger := logger.WithGroup("test_g")
+			logger = logger.With(slog.String("qwe", "tte"))
+
+			logger.LogAttrs(nil, slog.LevelInfo, "msg",
+				slog.String("user_id", "user_99"),
+				slog.Int("amount", 500),
+				slog.Duration("latency", 15*time.Millisecond),
+				slog.Bool("retry", false),
+				attr1,
+				attr2,
+			)
+		}
+	})
+}
+
+func BenchmarkLoggerJsonHandler(b *testing.B) {
+	logger := slog.New(NewJsonHandler(io.Discard, &Config{Level: int(slog.LevelDebug)}))
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			logger := logger.WithGroup("test_g")
+			logger = logger.With(slog.String("qwe", "tte"))
+
+			logger.LogAttrs(nil, slog.LevelInfo, "msg",
 				slog.String("user_id", "user_99"),
 				slog.Int("amount", 500),
 				slog.Duration("latency", 15*time.Millisecond),
@@ -59,9 +100,7 @@ func BenchmarkLoggerSlogColorHandler(b *testing.B) {
 }
 
 func BenchmarkLoggerSlog(b *testing.B) {
-	//file, _ := os.OpenFile("test.txt", os.O_RDWR, 0000)
-
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {

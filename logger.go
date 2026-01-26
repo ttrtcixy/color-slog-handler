@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"log/slog"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,22 +22,16 @@ const (
 	flushTime = time.Millisecond * 250
 )
 
-var (
-	reset   = []byte("\033[0m")
-	red     = []byte("\033[31m")
-	green   = []byte("\033[32m")
-	yellow  = []byte("\033[33m")
-	blue    = []byte("\033[34m")
-	magenta = []byte("\033[35m")
-	cyan    = []byte("\033[36m")
-	none    = []byte("")
-)
-
 const (
-	LevelDebug = "DEBU"
+	LevelDebug = "DEBUG"
 	LevelInfo  = "INFO"
 	LevelWarn  = "WARN"
-	LevelError = "ERRO"
+	LevelError = "ERROR"
+)
+
+var (
+	ErrNothingToClose = errors.New("use of close() is supported only for buffered logging")
+	ErrAlreadyClosed  = errors.New("logger buffer already closed")
 )
 
 // bufPool uses a pointer to a slice (*[]byte) to minimize overhead.
@@ -57,35 +50,6 @@ type Config struct {
 	BufferedOutput bool `env:"LOG_BUFFERED,required,notEmpty"`
 }
 
-type colorOptions struct {
-	TimeColor  []byte
-	KeyColor   []byte
-	ValueColor []byte
-}
-
-func newColorOptions(timeColor, keyColor, valueColor []byte) *colorOptions {
-	return &colorOptions{
-		TimeColor:  timeColor,
-		KeyColor:   keyColor,
-		ValueColor: valueColor,
-	}
-}
-
-type ColorizedHandler struct {
-	colorOpts *colorOptions
-
-	// holds the state common to all clones of the handler (writer, mutex, flags).
-	shared *shared
-
-	level slog.Level
-	// groupPrefix stores the accumulated group name (e.g., "http.server.")
-	// to flatten nested groups into dot-notation keys.
-	groupPrefix string
-
-	// precomputed stores already formatted attributes from WithAttrs()
-	precomputed string
-}
-
 // shared contains resources that must be synchronized across all handler clones.
 type shared struct {
 	// protects the underlying writers (bw and w).
@@ -102,71 +66,35 @@ type shared struct {
 	closed atomic.Bool
 }
 
-func NewTextHandler(w io.Writer, cfg *Config) *ColorizedHandler {
-	if w == nil {
-		w = os.Stderr
-	}
-	if cfg == nil {
-		cfg = &Config{Level: 0, BufferedOutput: false}
-	}
+type builder interface {
+	buildLog(buf []byte, record slog.Record, precomputedAttrs string, groupPrefix string) []byte
+	appendAttr(buf []byte, groupPrefix []byte, attr slog.Attr) []byte
+	writeValue(buf []byte, value slog.Value) []byte
 
-	shared := &shared{
-		mu:     &sync.Mutex{},
-		w:      w,
-		done:   make(chan struct{}),
-		closed: atomic.Bool{},
-	}
-
-	h := &ColorizedHandler{
-		colorOpts: newColorOptions(blue, magenta, none),
-		shared:    shared,
-		level:     slog.Level(cfg.Level),
-	}
-
-	if cfg.BufferedOutput {
-		bw := bufio.NewWriterSize(w, writerBufSize)
-		h.shared.bw = bw
-		// Start a background routine to periodically flush the buffer.
-		// This ensures logs appear even during low activity periods.
-		// NOTE: The user MUST call Close() to stop this goroutine and prevent leaks.
-		go h.flusher()
-	}
-
-	return h
+	precomputeAttrs(buf []byte, groupPrefix string, attrs []slog.Attr) []byte
+	groupPrefix(oldPrefix string, newPrefix string) string
 }
 
-// flusher periodically flushes the buffer to the writer.
-// It stops when the done channel is closed.
-func (h *ColorizedHandler) flusher() {
-	ticker := time.NewTicker(flushTime)
-	defer ticker.Stop()
+type Handler struct {
+	// holds the state common to all clones of the handler (writer, mutex, flags).
+	shared *shared
 
-	for {
-		select {
-		case <-h.shared.done:
-			return
-		case <-ticker.C:
-			h.flushBuffer()
-		}
-	}
+	level slog.Level
+
+	// builder implements the log formatting logic (text, json, etc.) abstracting it from the handler control flow.
+	builder builder
+
+	// groupPrefix stores the accumulated group name (e.g., "http.server.")
+	// to flatten nested groups into dot-notation keys.
+	groupPrefix string
+
+	// precomputed stores already formatted attributes from WithAttrs()
+	precomputed string
 }
-
-// flushBuffer writes any buffered data to the underlying writer.
-func (h *ColorizedHandler) flushBuffer() {
-	h.shared.mu.Lock()
-	_ = h.shared.bw.Flush()
-	h.shared.mu.Unlock()
-}
-
-var (
-	ErrNothingToClose = errors.New("use of close() is supported only for buffered logging")
-	ErrAlreadyClosed  = errors.New("logger buffer already closed")
-)
 
 // Close signals the flusher to stop, marks the handler as closed using an atomic flag and flush buffer.
 // Closes buffered output only.
-func (h *ColorizedHandler) Close(_ context.Context) error {
-	// todo close write to io.Writer, not only bufio.Writer
+func (h *Handler) Close(_ context.Context) error {
 	// If buffering was never create.
 	if h.shared.bw == nil {
 		return ErrNothingToClose
@@ -184,14 +112,52 @@ func (h *ColorizedHandler) Close(_ context.Context) error {
 	return nil
 }
 
-func (h *ColorizedHandler) Enabled(_ context.Context, level slog.Level) bool {
+// flusher periodically flushes the buffer to the writer.
+// It stops when the done channel is closed.
+func (h *Handler) flusher() {
+	ticker := time.NewTicker(flushTime)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-h.shared.done:
+			return
+		case <-ticker.C:
+			h.flushBuffer()
+		}
+	}
+}
+
+// flushBuffer writes any buffered data to the underlying writer.
+func (h *Handler) flushBuffer() {
+	h.shared.mu.Lock()
+	_ = h.shared.bw.Flush()
+	h.shared.mu.Unlock()
+}
+
+func newHandler(w io.Writer, level slog.Level, builder builder) *Handler {
+	shared := &shared{
+		mu:     &sync.Mutex{},
+		w:      w,
+		done:   make(chan struct{}),
+		closed: atomic.Bool{},
+	}
+
+	return &Handler{
+		shared:  shared,
+		level:   level,
+		builder: builder,
+	}
+}
+
+func (h *Handler) Enabled(_ context.Context, level slog.Level) bool {
 	if h.shared.closed.Load() {
 		return false
 	}
 	return level >= h.level
 }
 
-func (h *ColorizedHandler) Handle(ctx context.Context, record slog.Record) (err error) {
+func (h *Handler) Handle(ctx context.Context, record slog.Record) (err error) {
 	if h.shared.closed.Load() {
 		return nil
 	}
@@ -208,7 +174,7 @@ func (h *ColorizedHandler) Handle(ctx context.Context, record slog.Record) (err 
 	// Reset buffer length but keep capacity.
 	buf := (*pBuf)[:0]
 
-	buf = h.buildLog(buf, record)
+	buf = h.builder.buildLog(buf, record, h.precomputed, h.groupPrefix)
 
 	if !h.shared.closed.Load() {
 		h.shared.mu.Lock()
@@ -231,20 +197,20 @@ func (h *ColorizedHandler) Handle(ctx context.Context, record slog.Record) (err 
 }
 
 // WithGroup  returns a new slog.Handler that adds the passed group to all attrs.
-func (h *ColorizedHandler) WithGroup(name string) slog.Handler {
+func (h *Handler) WithGroup(name string) slog.Handler {
 	if name == "" {
 		return h
 	}
 
 	h2 := h.clone()
 
-	h2.groupPrefix = h2.groupPrefix + name + "."
+	h2.groupPrefix = h2.builder.groupPrefix(h2.groupPrefix, name) // alloc
 
 	return h2
 }
 
 // WithAttrs returns a new slog.Handler with the given attributes appended.
-func (h *ColorizedHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	if len(attrs) == 0 {
 		return h
 	}
@@ -255,18 +221,7 @@ func (h *ColorizedHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	// Existing precomputed attributes must come first.
 	buf = append(buf, h.precomputed...)
 
-	// Prepare the current group prefix for these specific attributes.
-	var groupBuf [128]byte
-	pref := groupBuf[:0]
-
-	// Add group from WithGroup()
-	if len(h.groupPrefix) > 0 {
-		pref = append(pref, h.groupPrefix...)
-	}
-
-	for _, attr := range attrs {
-		buf = h.appendAttr(buf, pref, attr)
-	}
+	buf = h.builder.precomputeAttrs(buf, h.groupPrefix, attrs)
 
 	h2 := h.clone()
 
@@ -275,11 +230,11 @@ func (h *ColorizedHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 }
 
 // clone create new Handler with common state, groupPrefix and precomputed data.
-func (h *ColorizedHandler) clone() *ColorizedHandler {
-	return &ColorizedHandler{
-		colorOpts:   h.colorOpts,
+func (h *Handler) clone() *Handler {
+	return &Handler{
 		shared:      h.shared,
 		level:       h.level,
+		builder:     h.builder,
 		groupPrefix: h.groupPrefix,
 		precomputed: h.precomputed,
 	}
