@@ -60,9 +60,9 @@ func (b *jsonBuilder) buildLog(buf []byte, record slog.Record, precomputedAttrs 
 			var isFirst = true
 			record.Attrs(func(attr slog.Attr) bool {
 				//attr.Value = attr.Value.Resolve()
-				//if attr.Equal(slog.Attr{}) {
-				//	return true
-				//}
+				if attr.Equal(slog.Attr{}) {
+					return true
+				}
 
 				if !isFirst {
 					buf = append(buf, ',')

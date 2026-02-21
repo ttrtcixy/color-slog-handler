@@ -98,6 +98,10 @@ func (b *colorizedTextBuilder) buildLog(
 		}
 
 		record.Attrs(func(attr slog.Attr) bool {
+			if attr.Equal(slog.Attr{}) {
+				return true
+			}
+
 			buf = b.appendAttr(buf, pref, attr)
 			return true
 		})
