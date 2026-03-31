@@ -1,23 +1,27 @@
 [English](README.md) | [Русский](README.ru.md)
 
-# Высокопроизводительный обработчик Slog
+# Быстрые `slog`-обработчики
 
-Библиотека предоставляет оптимизированные обработчики для пакета slog. Основной фокус — на скорости работы и удобстве локальной разработки.
-* **Text Handler**: Создан для локальной разработки. ANSI-подсветка уровней, меток времени и метаданных. (Не рекомендуется для production).
-* **JSON Handler**: Высокопроизводительный обработчик для production-сред.
+Легковесные и оптимизированные обработчики для Go `log/slog` с фокусом на производительность и низкие аллокации.
 
-## Ключевые особенности
-* Использование `sync.Pool` минимизирует нагрузку на GC и выделение памяти в куче.
-* Опциональная буферизация через `bufio` с фоновым сбросом (flush) данных для снижения задержек на системных вызовах.
-* Простая передача TraceID или RequestID напрямую через `context.Context`.
-* Полная потокобезопасность.
+- `NewJsonHandler`: компактный JSON-вывод для production.
+- `NewTextHandler`: читаемый текстовый вывод с ANSI-подсветкой для локальной разработки.
+
+## Что есть
+
+- Низкоаллокирующее форматирование через `sync.Pool`.
+- Опциональный буферизированный вывод (`bufio.Writer`) с периодическим фоновым flush.
+- Контекстные атрибуты через `AppendAttrsToCtx(...)`.
+- Потокобезопасная работа.
+- Поддержка `WithAttrs` и `WithGroup`.
 
 ## Установка
+
 ```shell
 go get github.com/ttrtcixy/color-slog-handler
 ```
 
-## Использование
+## Быстрый старт
 
 ```go
 package main
@@ -26,44 +30,50 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	logger "github.com/ttrtcixy/color-slog-handler"
 )
 
 func main() {
 	cfg := &logger.Config{
-		Level:          int(slog.LevelDebug),
-		BufferedOutput: true, // Включение буферезированного вывода и фоновую очистку буфера.
+		Level:          slog.LevelInfo,
+		BufferedOutput: true,
+		WriteBuffSize:  4096,               // опционально
+		FlushInterval:  250 * time.Millisecond, // опционально
 	}
-    
-	// или logger.NewTextHandler(os.Stdout, cfg) для разработки
-	handler := logger.NewJsonHandler(os.Stdout, cfg)
-	l := slog.New(handler)
 
-	// Важно: Закройте обработчик, чтобы остановить очистку и сбросить оставшиеся журналы
-	defer handler.Close(context.Background())
+	handler := logger.NewJsonHandler(os.Stdout, cfg) // или NewTextHandler для локальной разработки
+	log := slog.New(handler)
 
-	l.LogAttrs(nil, slog.LevelInfo, "msg", slog.String("key", "val"))
+	// Нужен только при BufferedOutput=true.
+	defer func() { _ = handler.Close(context.Background()) }()
 
-	// Добавьте атрибуты в контекст
-	ctx := handler.AppendAttrsToCtx(context.Background(), slog.String("trace_id", "af82-bx22"))
+	ctx := logger.AppendAttrsToCtx(
+		context.Background(),
+		slog.String("trace_id", "af82-bx22"),
+		slog.String("request_id", "req-42"),
+	)
 
-	// Логгер автоматически подберет их
-	l.LogAttrs(ctx, slog.LevelInfo, "msg")
+	log.LogAttrs(ctx, slog.LevelInfo, "payment accepted", slog.Int("amount", 500))
 }
 ```
 
 ## Конфигурация
-Структура `Config` поддерживает переменные среды через теги:
-* `Level`: Уровень логирования (например, Debug=-4, Info=0).
-* `BufferedOutput`: Включить/Отключить буфер 4 КБ с автоматической периодической очисткой.
 
-## Важное примечание о буферизации
-Если установлено значение `BufferedOutput`: true, необходимо вызвать `handler.Close(ctx)`:
-* Он останавливает фоновую goroutine очистки.
-* Он гарантирует, что все оставшиеся журналы в буфере размером 4096 байт будут записаны в выходные данные.
+Поля `Config`:
 
-Вызов `Close()` для необработанного обработчика вернет `ErrNothingToClose`.
+- `Level` (`slog.Level`): минимальный уровень логирования.
+- `BufferedOutput` (`bool`): включить буферизированную запись и фоновый flusher.
+- `WriteBuffSize` (`int`): размер буфера записи, по умолчанию `4096`.
+- `FlushInterval` (`time.Duration`): интервал flush, по умолчанию `250ms`.
+- `MaxBufPoolSize` (`int`): максимальный размер буфера форматтера в пуле, по умолчанию `4096`.
 
-## Дорожная карта
-* Поддержка `slog.LogValuer`.
+## Буферизация и `Close()`
+
+Если включен `BufferedOutput`, перед завершением процесса вызывайте `Close(ctx)`, чтобы:
+
+- остановить фоновую goroutine flush;
+- сбросить оставшиеся данные из write-буфера.
+
+Если буферизация выключена, `Close()` вернет `ErrNothingToClose`.

@@ -1,23 +1,27 @@
 [English](README.md) | [Русский](README.ru.md)
 
-# High-Performance Slog Handler
+# Fast `slog` Handlers
 
-The library provides optimized handlers for the slog package. The main focus is on speed and ease of local development.
-* **Text Handler**: Created for local development. ANSI highlighting of levels, timestamps, and metadata. (Not recommended for production).
-* **JSON Handler**: High-performance handler for production environments.
+Lightweight and optimized handlers for Go `log/slog` with a focus on throughput and low allocations.
 
-## Key Features
-* Using `sync.Pool` minimizes the load on GC and memory allocation in the heap.
-* Optional buffering via `bufio` with background data flushing to reduce latency on system calls.
-* Simple transfer of TraceID or RequestID directly via `context.Context`.
-* Full thread safety.
+- `NewJsonHandler`: compact JSON output for production.
+- `NewTextHandler`: readable ANSI-colored text output for local development.
 
-## Installation
+## Features
+
+- Low-allocation formatting with `sync.Pool`.
+- Optional buffered output (`bufio.Writer`) with periodic background flushing.
+- Context attributes support via `AppendAttrsToCtx(...)`.
+- Safe concurrent use.
+- Supports `WithAttrs` and `WithGroup`.
+
+## Install
+
 ```shell
 go get github.com/ttrtcixy/color-slog-handler
 ```
 
-## Usage
+## Quick Start
 
 ```go
 package main
@@ -26,44 +30,50 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	logger "github.com/ttrtcixy/color-slog-handler"
 )
 
 func main() {
 	cfg := &logger.Config{
-		Level:          int(slog.LevelDebug),
-		BufferedOutput: true, // Enables buffered output and background flushing.
+		Level:          slog.LevelInfo,
+		BufferedOutput: true,
+		WriteBuffSize:  4096,               // optional
+		FlushInterval:  250 * time.Millisecond, // optional
 	}
 
-	// Use logger.NewTextHandler(os.Stdout, cfg) for local development
-	handler := logger.NewJsonHandler(os.Stdout, cfg)
-	l := slog.New(handler)
+	handler := logger.NewJsonHandler(os.Stdout, cfg) // or NewTextHandler for local dev
+	log := slog.New(handler)
 
-	// Important: Close the handler to stop the background flusher and flush remaining logs.
-	defer handler.Close(context.Background())
+	// Required only for buffered mode.
+	defer func() { _ = handler.Close(context.Background()) }()
 
-	l.LogAttrs(nil, slog.LevelInfo, "msg", slog.String("key", "val"))
+	ctx := logger.AppendAttrsToCtx(
+		context.Background(),
+		slog.String("trace_id", "af82-bx22"),
+		slog.String("request_id", "req-42"),
+	)
 
-	// Inject attributes into the context
-	ctx := handler.AppendAttrsToCtx(context.Background(), slog.String("trace_id", "af82-bx22"))
-
-	// The logger will automatically extract and include these attributes
-	l.LogAttrs(ctx, slog.LevelInfo, "msg")
+	log.LogAttrs(ctx, slog.LevelInfo, "payment accepted", slog.Int("amount", 500))
 }
 ```
 
 ## Configuration
-The `Config` struct supports environment variables via tags:
-* `Level`: Logging level (e.g., Debug=-4, Info=0).
-* `BufferedOutput`: Enable/Disable 4 KB buffer with automatic periodic flushing.
 
-## Important Note on Buffering
-If `BufferedOutput` is set to: true, you must call `handler.Close(ctx)`:
-* It stops the background flushing goroutine.
-* It ensures that all remaining logs in the 4096-byte buffer are written to the output.
+`Config` fields:
 
-Calling `Close()` for an unbuffered handler will return `ErrNothingToClose`.
+- `Level` (`slog.Level`): minimum enabled log level.
+- `BufferedOutput` (`bool`): enable buffered writes and background flusher.
+- `WriteBuffSize` (`int`): writer buffer size, default `4096`.
+- `FlushInterval` (`time.Duration`): flush interval, default `250ms`.
+- `MaxBufPoolSize` (`int`): max pooled formatter buffer size, default `4096`.
 
-## Roadmap
-* Support for `slog.LogValuer`.
+## Buffering and `Close()`
+
+When `BufferedOutput` is enabled, call `Close(ctx)` before shutdown to:
+
+- stop the flusher goroutine;
+- flush remaining data from the write buffer.
+
+If buffering is disabled, `Close()` returns `ErrNothingToClose`.
