@@ -33,7 +33,7 @@ func NewTextHandler(w io.Writer, cfg *Config) *Handler[colorizedTextBuilder] {
 func (b colorizedTextBuilder) buildLog(ctx context.Context, buf []byte, record slog.Record) []byte {
 	// Time
 	buf = append(buf, faint...) // color
-	buf = record.Time.AppendFormat(buf, time.Stamp)
+	buf = record.Time.AppendFormat(buf, time.StampMilli)
 	buf = append(buf, reset...) // color
 	buf = append(buf, ' ')
 
