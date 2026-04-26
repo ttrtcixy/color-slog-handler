@@ -53,8 +53,8 @@ type Config struct {
 	WriteBuffSize int
 	// if BufferedOutput == true, you can specify the time after which the buffer will be cleared automatically, if FlushInterval == 0 clearing will occur every 250ms.
 	FlushInterval time.Duration
-	//// buffer size stored in the pool, default - 2048.
-	//BaseBufPoolSize int
+	// TimeInUnixNan - if true, time is written as Unix nanoseconds.
+	TimeInUnixNan bool
 	// the maximum size to which the buffer in the pool can be expanded; after exceeding this size, the buffer is cleared by the garbage collector, default - 4096.
 	MaxBufPoolSize int
 }

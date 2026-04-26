@@ -12,6 +12,8 @@ import (
 )
 
 type jsonBuilder struct {
+	// If true, time is written as Unix nanoseconds.
+	TimeInUnixNan bool
 	// precomputed for jsonBuilder stores already formatted args from WithAttrs() and WithGroup().
 	precomputed []byte
 	// the depth increases each time a group is added using groupPrefix.
@@ -19,12 +21,19 @@ type jsonBuilder struct {
 }
 
 func NewJsonHandler(w io.Writer, cfg *Config) *Handler[jsonBuilder] {
-	return newHandler[jsonBuilder](w, cfg, jsonBuilder{})
+	return newHandler[jsonBuilder](w, cfg, jsonBuilder{
+		TimeInUnixNan: cfg.TimeInUnixNan,
+	})
 }
 
 func (b jsonBuilder) buildLog(ctx context.Context, buf []byte, record slog.Record) []byte {
 	buf = append(buf, `{"time":"`...)
-	buf = record.Time.AppendFormat(buf, time.DateTime)
+
+	if b.TimeInUnixNan {
+		buf = strconv.AppendInt(buf, record.Time.UnixNano(), 10)
+	} else {
+		buf = record.Time.AppendFormat(buf, time.DateTime)
+	}
 
 	buf = append(buf, `","level":"`...)
 	buf = append(buf, levelBytes(record.Level)...)
@@ -183,8 +192,9 @@ func (b jsonBuilder) precomputeAttrs(attrs []slog.Attr) jsonBuilder {
 	}
 
 	return jsonBuilder{
-		precomputed: buf,
-		depth:       b.depth,
+		TimeInUnixNan: b.TimeInUnixNan,
+		precomputed:   buf,
+		depth:         b.depth,
 	}
 }
 
@@ -202,8 +212,9 @@ func (b jsonBuilder) groupPrefix(newPrefix string) jsonBuilder {
 	b.depth++
 
 	return jsonBuilder{
-		precomputed: buf,
-		depth:       b.depth,
+		TimeInUnixNan: b.TimeInUnixNan,
+		precomputed:   buf,
+		depth:         b.depth,
 	}
 }
 
