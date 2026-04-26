@@ -265,6 +265,9 @@ type loggerCtxKey struct {
 
 var attrsKey = loggerCtxKey{}
 
+// AppendAttrsToCtx - This method cannot be called via a type assertion.
+// if the handler is wrapped in slog.MultiHandler, since MultiHandler
+// does not implement the attrToCtx interface.
 func (h *Handler[builderT]) AppendAttrsToCtx(ctx context.Context, attrs ...slog.Attr) context.Context {
 	return AppendAttrsToCtx(ctx, attrs...)
 }
