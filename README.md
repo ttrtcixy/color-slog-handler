@@ -18,7 +18,7 @@ Lightweight and optimized handlers for Go `log/slog` with a focus on throughput 
 ## Install
 
 ```shell
-go get github.com/ttrtcixy/color-slog-handler
+go get github.com/ttrtcixy/fast-slog-handler
 ```
 
 ## Quick Start
