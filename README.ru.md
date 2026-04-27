@@ -18,7 +18,7 @@
 ## Установка
 
 ```shell
-go get github.com/ttrtcixy/color-slog-handler
+go get github.com/ttrtcixy/fast-slog-handler
 ```
 
 ## Быстрый старт
