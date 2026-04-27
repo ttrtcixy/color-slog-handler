@@ -30,28 +30,31 @@ const (
 	LevelError = "ERROR"
 )
 
-type timeFormat = string
+// TimeFormat - supports existing formats, or you can create your own time display format
+//
+// Example: TimeFormat("02.01.06 15:04:05")
+type TimeFormat = string
 
 const (
-	UnixMilli timeFormat = "UnixMilli"
-	UnixMicro timeFormat = "UnixMicro"
-	UnixNano  timeFormat = "UnixNano"
+	UnixMilli TimeFormat = "milli"
+	UnixMicro TimeFormat = "micro"
+	UnixNano  TimeFormat = "nano"
 
-	RFC3339     timeFormat = time.RFC3339
-	RFC3339Nano timeFormat = time.RFC3339Nano
+	RFC3339     TimeFormat = time.RFC3339
+	RFC3339Nano TimeFormat = time.RFC3339Nano
 
-	Stamp      timeFormat = time.Stamp
-	StampMilli timeFormat = time.StampMilli
-	StampMicro timeFormat = time.StampMicro
-	StampNano  timeFormat = time.StampNano
+	Stamp      TimeFormat = time.Stamp
+	StampMilli TimeFormat = time.StampMilli
+	StampMicro TimeFormat = time.StampMicro
+	StampNano  TimeFormat = time.StampNano
 
-	DateTime timeFormat = time.DateTime
-	DateOnly timeFormat = time.DateOnly
-	TimeOnly timeFormat = time.TimeOnly
+	DateTime TimeFormat = time.DateTime
+	DateOnly TimeFormat = time.DateOnly
+	TimeOnly TimeFormat = time.TimeOnly
 )
 
 type tf struct {
-	format timeFormat
+	format TimeFormat
 	unix   bool
 }
 
@@ -73,7 +76,7 @@ type Config struct {
 	// logger level, default - slog.LevelError
 	Level slog.Level
 	// TimeFormat
-	TimeFormat timeFormat
+	TimeFormat TimeFormat
 	// start buffered output to minimize count of syscall.
 	BufferedOutput bool
 	// if BufferedOutput == true, you can specify the buffer size; if WriteBuffSize == 0, a buffer of size 4096 will be allocated.
@@ -84,7 +87,7 @@ type Config struct {
 	MaxBufPoolSize int
 }
 
-func (cfg *Config) checkTimeFormat() timeFormat {
+func (cfg *Config) checkTimeFormat() TimeFormat {
 	if cfg.TimeFormat == "" {
 		cfg.TimeFormat = RFC3339
 	}

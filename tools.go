@@ -51,7 +51,7 @@ func levelBytes(level slog.Level) string {
 }
 
 // unixFormat returns true if the time format is UnixNano, UnixMilli or UnixMicro.
-func unixFormat(tf timeFormat) bool {
+func unixFormat(tf TimeFormat) bool {
 	if tf == UnixNano || tf == UnixMilli || tf == UnixMicro {
 		return true
 	}
