@@ -27,12 +27,14 @@ func NewJsonHandler(w io.Writer, cfg *Config) *Handler[jsonBuilder] {
 }
 
 func (b jsonBuilder) buildLog(ctx context.Context, buf []byte, record slog.Record) []byte {
-	buf = append(buf, `{"time":"`...)
-
 	if b.TimeInUnixNan {
+		buf = append(buf, `{"time":`...)
 		buf = strconv.AppendInt(buf, record.Time.UnixNano(), 10)
+		buf = append(buf, `,"level":"`...)
 	} else {
+		buf = append(buf, `{"time":"`...)
 		buf = record.Time.AppendFormat(buf, time.DateTime)
+		buf = append(buf, `","level":"`...)
 	}
 
 	buf = append(buf, `","level":"`...)
