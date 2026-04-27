@@ -17,7 +17,7 @@ var (
 var file, _ = os.OpenFile("t.txt", os.O_RDWR, 0000)
 
 func BenchmarkLoggerJsonHandlerBuffered(b *testing.B) {
-	handler := NewJsonHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: true})
+	handler := NewJsonHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: true, TimeFormat: RFC3339})
 	logger := slog.New(handler)
 
 	ctx := context.Background()
@@ -42,7 +42,7 @@ func BenchmarkLoggerJsonHandlerBuffered(b *testing.B) {
 }
 
 func BenchmarkLoggerJsonHandler(b *testing.B) {
-	handler := NewJsonHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: false})
+	handler := NewJsonHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: false, TimeFormat: RFC3339})
 	logger := slog.New(handler)
 
 	ctx := context.Background()
@@ -67,7 +67,7 @@ func BenchmarkLoggerJsonHandler(b *testing.B) {
 }
 
 func BenchmarkLoggerTextBuffered(b *testing.B) {
-	handler := NewTextHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: true})
+	handler := NewTextHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: true, TimeFormat: RFC3339})
 	logger := slog.New(handler)
 
 	ctx := context.Background()
@@ -92,11 +92,59 @@ func BenchmarkLoggerTextBuffered(b *testing.B) {
 }
 
 func BenchmarkLoggerText(b *testing.B) {
-	handler := NewTextHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: false})
+	handler := NewTextHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: false, TimeFormat: RFC3339})
 	logger := slog.New(handler)
 
 	ctx := context.Background()
 	ctx = handler.AppendAttrsToCtx(ctx, slog.String("ctx", "attr"))
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			logger := logger.WithGroup("test_g")
+			logger = logger.With(slog.String("qwe", "tte"))
+
+			logger.LogAttrs(ctx, slog.LevelInfo, "msg",
+				slog.String("user_id", "user_99"),
+				slog.Int("amount", 500),
+				slog.Duration("latency", 15*time.Millisecond),
+				slog.Bool("retry", false),
+				attr1,
+				attr2,
+			)
+		}
+	})
+}
+
+func BenchmarkSlogTextHandler(b *testing.B) {
+	handler := slog.NewTextHandler(io.Discard, nil)
+	logger := slog.New(handler)
+
+	ctx := context.Background()
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			logger := logger.WithGroup("test_g")
+			logger = logger.With(slog.String("qwe", "tte"))
+
+			logger.LogAttrs(ctx, slog.LevelInfo, "msg",
+				slog.String("user_id", "user_99"),
+				slog.Int("amount", 500),
+				slog.Duration("latency", 15*time.Millisecond),
+				slog.Bool("retry", false),
+				attr1,
+				attr2,
+			)
+		}
+	})
+}
+
+func BenchmarkSlogJsonHandler(b *testing.B) {
+	handler := slog.NewJSONHandler(io.Discard, nil)
+	logger := slog.New(handler)
+
+	ctx := context.Background()
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
