@@ -22,18 +22,46 @@ const (
 )
 
 type colorizedTextBuilder struct {
+	// TimeFormat
+	tf
 	precomputedAttrs []byte
 	prefix           string
 }
 
 func NewTextHandler(w io.Writer, cfg *Config) *Handler[colorizedTextBuilder] {
-	return newHandler[colorizedTextBuilder](w, cfg, colorizedTextBuilder{})
+	if cfg == nil {
+		cfg = &Config{Level: slog.LevelInfo, BufferedOutput: false, TimeFormat: RFC3339}
+	}
+
+	cfg.checkTimeFormat()
+
+	return newHandler[colorizedTextBuilder](
+		w,
+		cfg,
+		colorizedTextBuilder{
+			tf: tf{
+				format: cfg.TimeFormat,
+				unix:   unixFormat(cfg.TimeFormat),
+			},
+		},
+	)
 }
 
 func (b colorizedTextBuilder) buildLog(ctx context.Context, buf []byte, record slog.Record) []byte {
 	// Time
 	buf = append(buf, faint...) // color
-	buf = record.Time.AppendFormat(buf, time.StampMilli)
+	if b.unix {
+		switch b.format {
+		case UnixMilli:
+			buf = strconv.AppendInt(buf, record.Time.UnixMilli(), 10)
+		case UnixMicro:
+			buf = strconv.AppendInt(buf, record.Time.UnixMicro(), 10)
+		case UnixNano:
+			buf = strconv.AppendInt(buf, record.Time.UnixNano(), 10)
+		}
+	} else {
+		buf = record.Time.AppendFormat(buf, b.format)
+	}
 	buf = append(buf, reset...) // color
 	buf = append(buf, ' ')
 
@@ -174,13 +202,18 @@ func (b colorizedTextBuilder) precomputeAttrs(attrs []slog.Attr) colorizedTextBu
 	}
 
 	return colorizedTextBuilder{
+		tf:               b.tf,
 		precomputedAttrs: buf,
 		prefix:           b.prefix,
 	}
 }
 
 func (b colorizedTextBuilder) groupPrefix(newPrefix string) colorizedTextBuilder {
-	return colorizedTextBuilder{precomputedAttrs: b.precomputedAttrs, prefix: b.prefix + newPrefix + "."}
+	return colorizedTextBuilder{
+		tf:               b.tf,
+		precomputedAttrs: b.precomputedAttrs,
+		prefix:           b.prefix + newPrefix + ".",
+	}
 }
 
 func (b colorizedTextBuilder) appendString(buf []byte, val string) []byte {

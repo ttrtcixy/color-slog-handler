@@ -12,8 +12,8 @@ import (
 )
 
 type jsonBuilder struct {
-	// If true, time is written as Unix nanoseconds.
-	TimeInUnixNan bool
+	// TimeFormat
+	tf
 	// precomputed for jsonBuilder stores already formatted args from WithAttrs() and WithGroup().
 	precomputed []byte
 	// the depth increases each time a group is added using groupPrefix.
@@ -21,21 +21,26 @@ type jsonBuilder struct {
 }
 
 func NewJsonHandler(w io.Writer, cfg *Config) *Handler[jsonBuilder] {
-	return newHandler[jsonBuilder](w, cfg, jsonBuilder{
-		TimeInUnixNan: cfg.TimeInUnixNan,
-	})
+	if cfg == nil {
+		cfg = &Config{Level: slog.LevelInfo, BufferedOutput: false, TimeFormat: RFC3339}
+	}
+
+	cfg.checkTimeFormat()
+
+	return newHandler[jsonBuilder](
+		w,
+		cfg,
+		jsonBuilder{
+			tf: tf{
+				format: cfg.TimeFormat,
+				unix:   unixFormat(cfg.TimeFormat),
+			},
+		},
+	)
 }
 
 func (b jsonBuilder) buildLog(ctx context.Context, buf []byte, record slog.Record) []byte {
-	if b.TimeInUnixNan {
-		buf = append(buf, `{"time":`...)
-		buf = strconv.AppendInt(buf, record.Time.UnixNano(), 10)
-		buf = append(buf, `,"level":"`...)
-	} else {
-		buf = append(buf, `{"time":"`...)
-		buf = record.Time.AppendFormat(buf, time.DateTime)
-		buf = append(buf, `","level":"`...)
-	}
+	buf = b.writeTime(buf, record.Time)
 
 	buf = append(buf, levelBytes(record.Level)...)
 
@@ -77,6 +82,31 @@ func (b jsonBuilder) buildLog(ctx context.Context, buf []byte, record slog.Recor
 	}
 
 	buf = append(buf, '}', '\n')
+
+	return buf
+}
+
+func (b jsonBuilder) writeTime(buf []byte, t time.Time) []byte {
+	if b.unix {
+		buf = append(buf, `{"time":`...)
+
+		switch b.format {
+		case UnixMilli:
+			buf = strconv.AppendInt(buf, t.UnixMilli(), 10)
+		case UnixMicro:
+			buf = strconv.AppendInt(buf, t.UnixMicro(), 10)
+		case UnixNano:
+			buf = strconv.AppendInt(buf, t.UnixNano(), 10)
+		}
+
+		buf = append(buf, `,"level":"`...)
+	} else {
+		buf = append(buf, `{"time":"`...)
+
+		buf = t.AppendFormat(buf, b.format)
+
+		buf = append(buf, `","level":"`...)
+	}
 
 	return buf
 }
@@ -193,9 +223,9 @@ func (b jsonBuilder) precomputeAttrs(attrs []slog.Attr) jsonBuilder {
 	}
 
 	return jsonBuilder{
-		TimeInUnixNan: b.TimeInUnixNan,
-		precomputed:   buf,
-		depth:         b.depth,
+		tf:          b.tf,
+		precomputed: buf,
+		depth:       b.depth,
 	}
 }
 
@@ -213,9 +243,9 @@ func (b jsonBuilder) groupPrefix(newPrefix string) jsonBuilder {
 	b.depth++
 
 	return jsonBuilder{
-		TimeInUnixNan: b.TimeInUnixNan,
-		precomputed:   buf,
-		depth:         b.depth,
+		tf:          b.tf,
+		precomputed: buf,
+		depth:       b.depth,
 	}
 }
 

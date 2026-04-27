@@ -30,6 +30,31 @@ const (
 	LevelError = "ERROR"
 )
 
+type timeFormat = string
+
+const (
+	UnixMilli timeFormat = "UnixMilli"
+	UnixMicro timeFormat = "UnixMicro"
+	UnixNano  timeFormat = "UnixNano"
+
+	RFC3339     timeFormat = time.RFC3339
+	RFC3339Nano timeFormat = time.RFC3339Nano
+
+	Stamp      timeFormat = time.Stamp
+	StampMilli timeFormat = time.StampMilli
+	StampMicro timeFormat = time.StampMicro
+	StampNano  timeFormat = time.StampNano
+
+	DateTime timeFormat = time.DateTime
+	DateOnly timeFormat = time.DateOnly
+	TimeOnly timeFormat = time.TimeOnly
+)
+
+type tf struct {
+	format timeFormat
+	unix   bool
+}
+
 var (
 	ErrNothingToClose = errors.New("use of close() is supported only for buffered logging")
 	ErrAlreadyClosed  = errors.New("logger buffer already closed")
@@ -47,16 +72,24 @@ var bufPool = sync.Pool{
 type Config struct {
 	// logger level, default - slog.LevelError
 	Level slog.Level
+	// TimeFormat
+	TimeFormat timeFormat
 	// start buffered output to minimize count of syscall.
 	BufferedOutput bool
 	// if BufferedOutput == true, you can specify the buffer size; if WriteBuffSize == 0, a buffer of size 4096 will be allocated.
 	WriteBuffSize int
 	// if BufferedOutput == true, you can specify the time after which the buffer will be cleared automatically, if FlushInterval == 0 clearing will occur every 250ms.
 	FlushInterval time.Duration
-	// TimeInUnixNan - if true, time is written as Unix nanoseconds.
-	TimeInUnixNan bool
 	// the maximum size to which the buffer in the pool can be expanded; after exceeding this size, the buffer is cleared by the garbage collector, default - 4096.
 	MaxBufPoolSize int
+}
+
+func (cfg *Config) checkTimeFormat() timeFormat {
+	if cfg.TimeFormat == "" {
+		cfg.TimeFormat = RFC3339
+	}
+
+	return cfg.TimeFormat
 }
 
 // shared contains resources that must be synchronized across all handler clones.
@@ -80,6 +113,7 @@ type builderConstraint[B any] interface {
 	buildLog(ctx context.Context, buf []byte, record slog.Record) []byte
 	precomputeAttrs(attrs []slog.Attr) B
 	groupPrefix(newPrefix string) B
+	//setTimeFormat(format string, unix bool)
 }
 
 type Handler[B builderConstraint[B]] struct {
@@ -148,10 +182,6 @@ func (h *Handler[B]) flushBuffer() {
 func newHandler[B builderConstraint[B]](w io.Writer, cfg *Config, builder B) *Handler[B] {
 	if w == nil {
 		w = os.Stderr
-	}
-
-	if cfg == nil {
-		cfg = &Config{Level: slog.LevelInfo, BufferedOutput: false}
 	}
 
 	shared := &shared{
