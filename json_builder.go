@@ -37,7 +37,6 @@ func (b jsonBuilder) buildLog(ctx context.Context, buf []byte, record slog.Recor
 		buf = append(buf, `","level":"`...)
 	}
 
-	buf = append(buf, `","level":"`...)
 	buf = append(buf, levelBytes(record.Level)...)
 
 	buf = append(buf, `","msg":"`...)
