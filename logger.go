@@ -39,18 +39,6 @@ const (
 	UnixMilli TimeFormat = "milli"
 	UnixMicro TimeFormat = "micro"
 	UnixNano  TimeFormat = "nano"
-
-	RFC3339     TimeFormat = time.RFC3339
-	RFC3339Nano TimeFormat = time.RFC3339Nano
-
-	Stamp      TimeFormat = time.Stamp
-	StampMilli TimeFormat = time.StampMilli
-	StampMicro TimeFormat = time.StampMicro
-	StampNano  TimeFormat = time.StampNano
-
-	DateTime TimeFormat = time.DateTime
-	DateOnly TimeFormat = time.DateOnly
-	TimeOnly TimeFormat = time.TimeOnly
 )
 
 type tf struct {
