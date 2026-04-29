@@ -66,8 +66,7 @@ func BenchmarkLoggerJsonHandler(b *testing.B) {
 	})
 }
 
-func BenchmarkLoggerTextBuffered(b *testing.B) {
-	handler := NewTextHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: true, TimeFormat: RFC3339})
+func BenchmarkLoggerTextBuffered(b *testing.B) { // 11
 	handler := NewTextHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: true, TimeFormat: time.RFC3339})
 	logger := slog.New(handler)
 
@@ -92,8 +91,7 @@ func BenchmarkLoggerTextBuffered(b *testing.B) {
 	})
 }
 
-func BenchmarkLoggerText(b *testing.B) {
-	handler := NewTextHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: false, TimeFormat: RFC3339})
+func BenchmarkLoggerText(b *testing.B) { // 11
 	handler := NewTextHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: false, TimeFormat: time.RFC3339})
 	logger := slog.New(handler)
 

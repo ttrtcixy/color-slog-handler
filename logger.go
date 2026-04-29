@@ -64,7 +64,7 @@ var bufPool = sync.Pool{
 type Config struct {
 	// logger level, default - slog.LevelError
 	Level slog.Level
-	// TimeFormat
+	// TimeFormat - can be either values from std (time.RFC3339), its own templates, or reserved UnixMilli, UnixMicro, UnixNano
 	TimeFormat TimeFormat
 	// start buffered output to minimize count of syscall.
 	BufferedOutput bool
