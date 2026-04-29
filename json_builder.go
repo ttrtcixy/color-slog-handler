@@ -22,7 +22,7 @@ type jsonBuilder struct {
 
 func NewJsonHandler(w io.Writer, cfg *Config) *Handler[jsonBuilder] {
 	if cfg == nil {
-		cfg = &Config{Level: slog.LevelInfo, BufferedOutput: false, TimeFormat: RFC3339}
+		cfg = &Config{Level: slog.LevelError, BufferedOutput: false, TimeFormat: time.RFC3339}
 	}
 
 	cfg.checkTimeFormat()

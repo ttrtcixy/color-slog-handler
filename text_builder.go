@@ -30,7 +30,7 @@ type colorizedTextBuilder struct {
 
 func NewTextHandler(w io.Writer, cfg *Config) *Handler[colorizedTextBuilder] {
 	if cfg == nil {
-		cfg = &Config{Level: slog.LevelInfo, BufferedOutput: false, TimeFormat: RFC3339}
+		cfg = &Config{Level: slog.LevelError, BufferedOutput: false, TimeFormat: time.RFC3339}
 	}
 
 	cfg.checkTimeFormat()
