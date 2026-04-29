@@ -17,7 +17,7 @@ var (
 var file, _ = os.OpenFile("t.txt", os.O_RDWR, 0000)
 
 func BenchmarkLoggerJsonHandlerBuffered(b *testing.B) {
-	handler := NewJsonHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: true, TimeFormat: RFC3339})
+	handler := NewJsonHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: true, TimeFormat: time.RFC3339})
 	logger := slog.New(handler)
 
 	ctx := context.Background()
@@ -42,7 +42,7 @@ func BenchmarkLoggerJsonHandlerBuffered(b *testing.B) {
 }
 
 func BenchmarkLoggerJsonHandler(b *testing.B) {
-	handler := NewJsonHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: false, TimeFormat: RFC3339})
+	handler := NewJsonHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: false, TimeFormat: time.RFC3339})
 	logger := slog.New(handler)
 
 	ctx := context.Background()
@@ -68,6 +68,7 @@ func BenchmarkLoggerJsonHandler(b *testing.B) {
 
 func BenchmarkLoggerTextBuffered(b *testing.B) {
 	handler := NewTextHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: true, TimeFormat: RFC3339})
+	handler := NewTextHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: true, TimeFormat: time.RFC3339})
 	logger := slog.New(handler)
 
 	ctx := context.Background()
@@ -93,6 +94,7 @@ func BenchmarkLoggerTextBuffered(b *testing.B) {
 
 func BenchmarkLoggerText(b *testing.B) {
 	handler := NewTextHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: false, TimeFormat: RFC3339})
+	handler := NewTextHandler(io.Discard, &Config{Level: slog.LevelInfo, BufferedOutput: false, TimeFormat: time.RFC3339})
 	logger := slog.New(handler)
 
 	ctx := context.Background()

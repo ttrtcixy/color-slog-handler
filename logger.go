@@ -78,7 +78,7 @@ type Config struct {
 
 func (cfg *Config) checkTimeFormat() TimeFormat {
 	if cfg.TimeFormat == "" {
-		cfg.TimeFormat = RFC3339
+		cfg.TimeFormat = time.RFC3339
 	}
 
 	return cfg.TimeFormat
