@@ -46,12 +46,12 @@ func (b jsonBuilder) buildLog(ctx context.Context, buf []byte, record slog.Recor
 
 	buf = append(buf, `","msg":"`...)
 	if record.Message == "" {
-		buf = append(buf, `!EMPTY_MESSAGE`...)
+		buf = append(buf, `!EMPTY_MESSAGE"`...)
 	} else {
 		// dangerous because it does not track whether there are invalid JSON characters in the line
 		buf = append(buf, record.Message...)
+		buf = append(buf, '"')
 	}
-	buf = append(buf, '"')
 
 	// Check the ctx for slog.Args
 	// !Important, attributes from the context are not saved, but are collected every time the log is output
