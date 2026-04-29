@@ -48,9 +48,8 @@ func (b jsonBuilder) buildLog(ctx context.Context, buf []byte, record slog.Recor
 	if record.Message == "" {
 		buf = append(buf, `!EMPTY_MESSAGE`...)
 	} else {
-		buf = append(
-			buf,
-			record.Message...) // dangerous because it does not track whether there are invalid JSON characters in the line
+		// dangerous because it does not track whether there are invalid JSON characters in the line
+		buf = append(buf, record.Message...)
 	}
 	buf = append(buf, '"')
 
