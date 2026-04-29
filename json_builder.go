@@ -12,12 +12,12 @@ import (
 )
 
 type jsonBuilder struct {
-	// TimeFormat
-	tf
 	// precomputed for jsonBuilder stores already formatted args from WithAttrs() and WithGroup().
 	precomputed []byte
 	// the depth increases each time a group is added using groupPrefix.
 	depth int
+	// TimeFormat
+	tf
 }
 
 func NewJsonHandler(w io.Writer, cfg *Config) *Handler[jsonBuilder] {

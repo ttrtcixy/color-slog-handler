@@ -22,10 +22,10 @@ const (
 )
 
 type colorizedTextBuilder struct {
-	// TimeFormat
-	tf
 	precomputedAttrs []byte
 	prefix           string
+	// TimeFormat
+	tf
 }
 
 func NewTextHandler(w io.Writer, cfg *Config) *Handler[colorizedTextBuilder] {
