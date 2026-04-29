@@ -255,6 +255,7 @@ func (b jsonBuilder) addComma(buf []byte) []byte {
 			buf = append(buf, ',')
 		}
 	}
+
 	return buf
 }
 
@@ -287,7 +288,6 @@ func appendEscapedJSONString(buf []byte, s string) []byte {
 			case '\t':
 				char('t')
 			default:
-				// This encodes bytes < 0x20 except for \t, \n and \r.
 				str(`u00`)
 				char(hex[b>>4])
 				char(hex[b&0xF])
@@ -306,13 +306,6 @@ func appendEscapedJSONString(buf []byte, s string) []byte {
 			start = i
 			continue
 		}
-		// U+2028 is LINE SEPARATOR.
-		// U+2029 is PARAGRAPH SEPARATOR.
-		// They are both technically valid characters in JSON strings,
-		// but don't work in JSONP, which has to be evaluated as JavaScript,
-		// and can lead to security holes there. It is valid JSON to
-		// escape them, so we do so unconditionally.
-		// See http://timelessrepo.com/json-isnt-a-javascript-subset for discussion.
 		if c == '\u2028' || c == '\u2029' {
 			if start < i {
 				str(s[start:i])
@@ -328,5 +321,6 @@ func appendEscapedJSONString(buf []byte, s string) []byte {
 	if start < len(s) {
 		str(s[start:])
 	}
+
 	return buf
 }

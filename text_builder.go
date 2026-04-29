@@ -97,6 +97,7 @@ func (b colorizedTextBuilder) buildLog(ctx context.Context, buf []byte, record s
 	if record.NumAttrs() > 0 {
 		// Stack-allocated buffer for group prefix to avoid allocs
 		var groupBuf [128]byte
+
 		pref := groupBuf[:0]
 
 		// Add group from WithGroup()
@@ -110,11 +111,13 @@ func (b colorizedTextBuilder) buildLog(ctx context.Context, buf []byte, record s
 			}
 
 			buf = b.appendAttr(buf, pref, attr)
+
 			return true
 		})
 	}
 
 	buf = append(buf, '\n')
+
 	return buf
 }
 
@@ -135,6 +138,7 @@ func (b colorizedTextBuilder) appendAttr(buf []byte, groupPrefix []byte, attr sl
 		for _, v := range attr.Value.Group() {
 			buf = b.appendAttr(buf, groupPrefix, v)
 		}
+
 		return buf
 	}
 
@@ -148,6 +152,7 @@ func (b colorizedTextBuilder) appendAttr(buf []byte, groupPrefix []byte, attr sl
 	if attr.Key == "" {
 		attr.Key = "!EMPTY_KEY"
 	}
+
 	buf = append(buf, attr.Key...)
 	buf = append(buf, '=')
 	buf = append(buf, reset...) // color
@@ -187,6 +192,7 @@ func (b colorizedTextBuilder) writeValue(buf []byte, value slog.Value) []byte {
 	default:
 		buf = append(buf, "!UNHANDLED"...)
 	}
+
 	return buf
 }
 
@@ -195,6 +201,7 @@ func (b colorizedTextBuilder) precomputeAttrs(attrs []slog.Attr) colorizedTextBu
 
 	// Prepare the current group prefix for these specific attributes.
 	var groupBuf [128]byte
+
 	pref := groupBuf[:0]
 
 	// Add group from WithGroup()
@@ -231,6 +238,7 @@ func (b colorizedTextBuilder) appendString(buf []byte, val string) []byte {
 		buf = append(buf, val...)
 		//}
 	}
+
 	return buf
 }
 

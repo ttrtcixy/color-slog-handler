@@ -68,6 +68,7 @@ var bufPool = sync.Pool{
 	New: func() any {
 		// Use a pointer to slice to avoid allocation when putting back to pool
 		b := make([]byte, 0, basePoolBufferSize)
+
 		return &b
 	},
 }
@@ -116,7 +117,6 @@ type builderConstraint[B any] interface {
 	buildLog(ctx context.Context, buf []byte, record slog.Record) []byte
 	precomputeAttrs(attrs []slog.Attr) B
 	groupPrefix(newPrefix string) B
-	//setTimeFormat(format string, unix bool)
 }
 
 type Handler[B builderConstraint[B]] struct {
@@ -149,6 +149,7 @@ func (h *Handler[B]) Close(_ context.Context) error {
 	close(h.shared.done)
 
 	h.flushBuffer()
+
 	return nil
 }
 
@@ -178,7 +179,9 @@ func (h *Handler[B]) flusher(cfgFlushInterval time.Duration) {
 // flushBuffer writes any buffered data to the underlying writer.
 func (h *Handler[B]) flushBuffer() {
 	h.shared.mu.Lock()
+
 	_ = h.shared.bw.Flush()
+
 	h.shared.mu.Unlock()
 }
 
@@ -223,6 +226,7 @@ func (h *Handler[B]) Enabled(_ context.Context, level slog.Level) bool {
 	if h.shared.closed.Load() {
 		return false
 	}
+
 	return level >= h.level
 }
 
@@ -233,6 +237,7 @@ func (h *Handler[B]) Handle(ctx context.Context, record slog.Record) (err error)
 
 	// Acquire a buffer from the pool to minimize garbage collection pressure.
 	pBuf := bufPool.Get().(*[]byte)
+
 	// Reset buffer length but keep capacity.
 	buf := (*pBuf)[:0]
 
@@ -240,11 +245,13 @@ func (h *Handler[B]) Handle(ctx context.Context, record slog.Record) (err error)
 
 	if !h.shared.closed.Load() {
 		h.shared.mu.Lock()
+
 		if h.shared.bw != nil {
 			_, err = h.shared.bw.Write(buf)
 		} else {
 			_, err = h.shared.w.Write(buf)
 		}
+
 		h.shared.mu.Unlock()
 	}
 
@@ -252,6 +259,7 @@ func (h *Handler[B]) Handle(ctx context.Context, record slog.Record) (err error)
 	// This prevents one huge handler message from permanently keeping a large chunk of memory.
 	if cap(buf) <= h.maxBufPoolSize {
 		*pBuf = buf
+
 		bufPool.Put(pBuf)
 	}
 
@@ -265,6 +273,7 @@ func (h *Handler[B]) WithGroup(name string) slog.Handler {
 	}
 
 	h2 := h.clone()
+
 	h2.builder = h.builder.groupPrefix(name)
 
 	return h2
